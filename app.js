@@ -6,7 +6,7 @@ const App = (function () {
 
   const STATE = {
     fonts: [],
-    previewText: 'Simplicity is the ultimate sophistication',
+    previewText: 'سبحان الله وبحمده',
     previewSize: 32,
     previewColor: '#FFFFFF',
     search: '',
@@ -227,18 +227,35 @@ const App = (function () {
     });
   }
 
-  /* ── Strict PDF Export ── */
-  function exportPDF() {
+  async function exportPDF() {
     DOM.printBody.innerHTML = '';
     
-    if (STATE.fonts.length === 0) return showToast('No fonts to export', true);
+    if (STATE.fonts.length === 0) return showToast('لا توجد خطوط للتصدير', true);
     
+    showToast('جاري تحضير PDF...');
+
     const frag = document.createDocumentFragment();
-    
+    const loadPromises = [];
+
     STATE.fonts.forEach(font => {
-      const family = injectFont(font); // Ensure loaded
+      const id = 'f_' + font.name.replace(/[^a-zA-Z0-9]/g, '');
+      if (!STATE.loaded.has(id)) {
+        const url = URL.createObjectURL(font.data);
+        const face = new FontFace(id, `url(${url})`);
+        const p = face.load().then(f => {
+          document.fonts.add(f);
+          STATE.loaded.add(id);
+          URL.revokeObjectURL(url);
+        }).catch(e => console.warn(e));
+        loadPromises.push(p);
+      }
+    });
+
+    await Promise.allSettled(loadPromises);
+
+    STATE.fonts.forEach(font => {
+      const family = 'f_' + font.name.replace(/[^a-zA-Z0-9]/g, '');
       const tr = document.createElement('tr');
-      
       tr.innerHTML = `
         <td class="col-name">${font.name}</td>
         <td class="col-preview" style="font-family: '${family}';">${STATE.previewText}</td>
@@ -248,7 +265,7 @@ const App = (function () {
     });
     
     DOM.printBody.appendChild(frag);
-    window.print();
+    setTimeout(() => window.print(), 300);
   }
 
   /* ── Helpers ── */
@@ -287,14 +304,6 @@ const App = (function () {
       const current = document.body.getAttribute('data-theme');
       const next = current === 'dark' ? 'light' : 'dark';
       document.body.setAttribute('data-theme', next);
-      // Auto-contrast preview color
-      if (next === 'light') { 
-          STATE.previewColor = '#000000'; 
-          DOM.colorInput.value = '#000000';
-      } else { 
-          STATE.previewColor = '#FFFFFF'; 
-          DOM.colorInput.value = '#FFFFFF';
-      }
       updatePreview();
     };
 
