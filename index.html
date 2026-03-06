@@ -3,22 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FontScope</title>
-    
-    <!-- PWA Settings -->
+
+    <title>FontScope — مدير خطوط احترافي</title>
+    <meta name="description" content="FontScope أداة متصفح لإدارة واستعراض الخطوط العربية والإنجليزية بسهولة. رفع خطوط TTF، OTF، WOFF وتصنيفها وتصديرها.">
+    <meta name="keywords" content="خطوط عربية, مدير خطوط, font manager, Arabic fonts, TTF, OTF, WOFF, معاينة خطوط">
+    <meta name="author" content="QNest">
+    <meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#D32F2F">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="FontScope — مدير خطوط احترافي">
+    <meta property="og:description" content="أداة متصفح لرفع الخطوط واستعراضها وتصنيفها وتصديرها بسهولة تامة.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="icon-512.png">
+
+    <!-- PWA -->
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#ffffff">
     <link rel="apple-touch-icon" href="icon-512.png">
     <link rel="icon" type="image/png" href="icon-512.png">
-    
+
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
-    
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
     <!-- Icons -->
     <script src="https://unpkg.com/lucide@latest" defer></script>
-    
+
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -76,7 +87,7 @@
                 <input type="text" id="searchInput" placeholder="بحث باسم الخط...">
             </div>
             <div class="stats-box">
-                <span>الخطوط</span>
+                <span>الخطوط المحملة</span>
                 <span class="stats-val"><b id="countDisplay">0</b> / 750</span>
             </div>
             <hr class="divider">
@@ -102,7 +113,7 @@
     <!-- Overlay -->
     <div id="overlay" class="overlay"></div>
 
-    <!-- New: Unintrusive Upload Progress Bar -->
+    <!-- Upload Progress Bar -->
     <div id="uploadProgress" class="upload-progress">
         <div class="up-info">
             <span id="upText">جاري رفع الخطوط...</span>
@@ -125,7 +136,7 @@
         </div>
     </main>
 
-    <!-- Clean Print Area (Table Only) -->
+    <!-- Print Area -->
     <div id="printArea">
         <table class="print-table">
             <thead>

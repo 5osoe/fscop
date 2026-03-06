@@ -200,8 +200,8 @@ const App = (function () {
                     <button class="card-name" title="نسخ" onclick="App.copyName('${font.name}')">
                         ${font.name}
                     </button>
-                    <button style="border:none;background:none;cursor:pointer;color:#aaa" onclick="App.deleteFont(${font.id})">
-                        <i data-lucide="x" width="16"></i>
+                    <button class="card-delete" onclick="App.deleteFont(${font.id})">
+                        <i data-lucide="x" width="15"></i>
                     </button>
                 </div>
                 <div class="card-preview" style="color:${STATE.previewColor}">
