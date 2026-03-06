@@ -1,7 +1,7 @@
 const App = (function () {
     
     const STATE = {
-        dbName: 'FontScopeDB_V2', // غيرت الاسم لتجنب تضارب الكاش القديم
+        dbName: 'FontScopeDB_V2',
         storeName: 'fonts',
         db: null,
         fonts: [],
@@ -9,7 +9,8 @@ const App = (function () {
         previewSize: 32,
         previewColor: '#000000',
         searchQuery: '',
-        loadedFonts: new Set()
+        loadedFonts: new Set(),
+        deferredPrompt: null // For PWA
     };
 
     const DOM = {};
@@ -23,16 +24,17 @@ const App = (function () {
         DOM.color = document.getElementById('colorPicker');
         DOM.sizeVal = document.getElementById('sizeValue');
         
-        // Popups
         DOM.overlay = document.getElementById('overlay');
         DOM.panelTune = document.getElementById('panelCustomize');
         DOM.panelSettings = document.getElementById('panelSettings');
         
-        // Loading
         DOM.loadingOverlay = document.getElementById('loadingOverlay');
         DOM.loadingBar = document.getElementById('loadingBar');
         DOM.loadingPercent = document.getElementById('loadingPercent');
         DOM.loadingText = document.getElementById('loadingText');
+
+        // PWA Button
+        DOM.btnInstall = document.getElementById('btnInstallApp');
     }
 
     /* ─── Database ─── */
@@ -59,55 +61,71 @@ const App = (function () {
         };
     }
 
-    /* ─── Add Fonts with Loading Bar ─── */
-    async function addFonts(files) {
+    /* ─── Optimized Batch Upload (Fix for Freezing) ─── */
+    async function addFonts(filesList) {
         if (STATE.fonts.length >= 750) return showToast('المكتبة ممتلئة (750 خط)');
         
-        const validFiles = Array.from(files).filter(f => f.name.match(/\.(ttf|otf|woff|woff2)$/i));
-        if(validFiles.length === 0) return;
-
-        // Show Loading
-        toggleLoading(true, 0);
-        
-        const tx = STATE.db.transaction(STATE.storeName, 'readwrite');
-        const store = tx.objectStore(STATE.storeName);
-        let added = 0;
+        const validFiles = Array.from(filesList).filter(f => f.name.match(/\.(ttf|otf|woff|woff2)$/i));
         const total = validFiles.length;
+        if(total === 0) return;
 
-        // Process sequentially with small delays to allow UI updates
-        for (let i = 0; i < total; i++) {
-            const file = validFiles[i];
+        // Start Loading
+        toggleLoading(true, 0);
+
+        const BATCH_SIZE = 50; // Process 50 files at a time to prevent UI freeze
+        let processed = 0;
+        let addedCount = 0;
+
+        // Chunk processing function
+        for (let i = 0; i < total; i += BATCH_SIZE) {
+            const batch = validFiles.slice(i, i + BATCH_SIZE);
             
-            store.add({
-                name: file.name.replace(/\.[^/.]+$/, ""),
-                blob: file,
-                tag: '',
-                date: Date.now()
-            });
-            added++;
-
-            // Update UI every 5 files or on last one to save redraws
-            if (i % 5 === 0 || i === total - 1) {
-                const percent = Math.round(((i + 1) / total) * 100);
-                updateLoadingProgress(percent);
-                await new Promise(r => setTimeout(r, 0)); // Yield to UI thread
+            // Wait for this batch to be stored in DB before moving to next
+            const success = await saveBatchToDB(batch);
+            
+            if (success) {
+                processed += batch.length;
+                addedCount += batch.length;
+                
+                // Update UI
+                const pct = Math.round((processed / total) * 100);
+                updateLoadingProgress(pct);
+                
+                // Small breathing room for UI thread to update render
+                await new Promise(resolve => setTimeout(resolve, 50));
             }
         }
 
-        tx.oncomplete = () => {
-            setTimeout(() => {
-                toggleLoading(false);
-                if (added) {
-                    showToast(`تمت إضافة ${added} خط`);
-                    loadFonts();
-                }
-            }, 500); // Small delay to see 100%
-        };
-        
-        tx.onerror = () => {
+        // Finish
+        setTimeout(() => {
             toggleLoading(false);
-            showToast('حدث خطأ أثناء الحفظ');
-        };
+            if (addedCount > 0) {
+                showToast(`تمت إضافة ${addedCount} خط بنجاح`);
+                loadFonts();
+            }
+        }, 500);
+    }
+
+    function saveBatchToDB(files) {
+        return new Promise((resolve) => {
+            const tx = STATE.db.transaction(STATE.storeName, 'readwrite');
+            const store = tx.objectStore(STATE.storeName);
+
+            files.forEach(file => {
+                store.add({
+                    name: file.name.replace(/\.[^/.]+$/, ""),
+                    blob: file,
+                    tag: '',
+                    date: Date.now()
+                });
+            });
+
+            tx.oncomplete = () => resolve(true);
+            tx.onerror = (e) => {
+                console.error("Batch Error", e);
+                resolve(false); // Continue even if one batch fails
+            };
+        });
     }
 
     function toggleLoading(show, percent = 0) {
@@ -122,9 +140,10 @@ const App = (function () {
     function updateLoadingProgress(pct) {
         DOM.loadingBar.style.width = pct + '%';
         DOM.loadingPercent.textContent = pct + '%';
-        DOM.loadingText.textContent = pct < 100 ? 'جاري المعالجة...' : 'جاري الحفظ...';
+        DOM.loadingText.textContent = pct < 100 ? 'جاري المعالجة...' : 'اكتمل!';
     }
 
+    /* ─── CRUD ─── */
     function deleteFont(id) {
         if(!confirm('حذف هذا الخط؟')) return;
         const tx = STATE.db.transaction(STATE.storeName, 'readwrite');
@@ -153,11 +172,10 @@ const App = (function () {
         }
     }
 
-    /* ─── Font Loading ─── */
+    /* ─── Rendering ─── */
     async function activateFont(font) {
         const family = `f_${font.id}`;
         if (STATE.loadedFonts.has(family)) return family;
-        
         try {
             const buff = await font.blob.arrayBuffer();
             const face = new FontFace(family, buff);
@@ -168,7 +186,6 @@ const App = (function () {
         } catch(e) { return 'sans-serif'; }
     }
 
-    /* ─── Rendering ─── */
     function renderGrid() {
         const q = STATE.searchQuery.toLowerCase();
         const list = STATE.fonts.filter(f => f.name.toLowerCase().includes(q));
@@ -217,7 +234,6 @@ const App = (function () {
     function updateVisuals() {
         const txts = document.querySelectorAll('.preview-text');
         const wins = document.querySelectorAll('.card-preview');
-        
         requestAnimationFrame(() => {
             wins.forEach(d => d.style.color = STATE.previewColor);
             txts.forEach(t => {
@@ -236,7 +252,31 @@ const App = (function () {
         navigator.clipboard.writeText(text).then(() => showToast('تم نسخ الاسم'));
     }
 
-    /* ─── PDF Export ─── */
+    /* ─── PWA & Helpers ─── */
+    function initPWA() {
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevent Chrome 67 and earlier from automatically showing the prompt
+            e.preventDefault();
+            // Stash the event so it can be triggered later.
+            STATE.deferredPrompt = e;
+            // Update UI to notify the user they can add to home screen
+            DOM.btnInstall.style.display = 'flex';
+        });
+
+        DOM.btnInstall.addEventListener('click', () => {
+            // Hide our user interface that shows our A2HS button
+            DOM.btnInstall.style.display = 'none';
+            // Show the prompt
+            if (STATE.deferredPrompt) {
+                STATE.deferredPrompt.prompt();
+                // Wait for the user to respond to the prompt
+                STATE.deferredPrompt.userChoice.then((choiceResult) => {
+                    STATE.deferredPrompt = null;
+                });
+            }
+        });
+    }
+
     async function exportPDF() {
         if(!STATE.fonts.length) return;
         showToast('جاري التحضير...');
@@ -259,18 +299,14 @@ const App = (function () {
         setTimeout(() => window.print(), 500);
     }
 
-    /* ─── Popup Logic ─── */
     function togglePopup(popupId, show) {
         const popup = document.getElementById(popupId);
-        
-        // Hide others if opening
         if(show) {
             [DOM.panelTune, DOM.panelSettings].forEach(p => p.classList.remove('active'));
             popup.classList.add('active');
             DOM.overlay.classList.add('active');
         } else {
             popup.classList.remove('active');
-            // Only hide overlay if both are closed
             if(!DOM.panelTune.classList.contains('active') && !DOM.panelSettings.classList.contains('active')) {
                 DOM.overlay.classList.remove('active');
             }
@@ -287,8 +323,8 @@ const App = (function () {
     function init() {
         cacheDOM();
         initDB().then(loadFonts);
+        initPWA();
         
-        // Listeners
         DOM.search.oninput = e => { STATE.searchQuery = e.target.value; renderGrid(); };
         DOM.preview.oninput = e => { STATE.previewText = e.target.value||' '; updateVisuals(); };
         DOM.color.oninput = e => { STATE.previewColor = e.target.value; updateVisuals(); };
@@ -300,16 +336,12 @@ const App = (function () {
         document.getElementById('btnClear').onclick = clearAll;
         document.getElementById('btnExport').onclick = exportPDF;
 
-        // Toggle Popups
         document.getElementById('btnOpenTune').onclick = () => togglePopup('panelCustomize', true);
         document.getElementById('btnOpenMenu').onclick = () => togglePopup('panelSettings', true);
         
-        // Close Buttons & Overlay
         DOM.overlay.onclick = () => { togglePopup('panelCustomize', false); togglePopup('panelSettings', false); };
         document.querySelectorAll('.close-panel').forEach(b => {
-            b.onclick = function() {
-                togglePopup(this.closest('.control-panel').id, false);
-            };
+            b.onclick = function() { togglePopup(this.closest('.control-panel').id, false); };
         });
 
         if(window.lucide) lucide.createIcons();
