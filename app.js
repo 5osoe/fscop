@@ -34,7 +34,7 @@ const App = (function() {
         preview: document.getElementById('previewInput'),
         search: document.getElementById('searchInput'),
         total: document.getElementById('totalFonts'),
-        shown: document.getElementById('pageFonts'),
+        shown: null, // element removed from UI
         progress: document.getElementById('progressFill'),
         loaderText: document.getElementById('loaderText'),
         sidebar: document.getElementById('sidebar'),
@@ -232,7 +232,7 @@ const App = (function() {
     // --- 4. Rendering ---
     function render() {
         DOM.total.textContent = STATE.fonts.length;
-        DOM.shown.textContent = STATE.filtered.length;
+        if (DOM.shown) DOM.shown.textContent = STATE.filtered.length;
 
         const validKeys = new Set(STATE.filtered.map(f => f.fileName));
 
