@@ -1,13 +1,7 @@
-/* ═══════════════════════════════════════
-   Font Pro Logic - Performance Optimized
-   ═══════════════════════════════════════ */
-
 const App = (function () {
     
-    // إعدادات الحالة
     const STATE = {
-        dbName: 'FontProDB',
-        dbVersion: 1,
+        dbName: 'FontScopeDB',
         storeName: 'fonts',
         db: null,
         fonts: [],
@@ -15,101 +9,83 @@ const App = (function () {
         previewSize: 32,
         previewColor: '#000000',
         searchQuery: '',
-        loadedFonts: new Set(), // لتجنب إعادة تحميل الخط للمتصفح
-        maxFonts: 750,
-        maxSizeMB: 75 // 75 ميجابايت تقريبياً
+        loadedFonts: new Set()
     };
 
-    const DOM = {
-        grid: document.getElementById('fontGrid'),
-        empty: document.getElementById('emptyState'),
-        count: document.getElementById('countDisplay'),
-        fill: document.getElementById('storageFill'),
-        search: document.getElementById('searchInput'),
-        preview: document.getElementById('previewInput'),
-        color: document.getElementById('colorPicker'),
-        sizeVal: document.getElementById('sizeValue')
-    };
+    const DOM = {};
 
-    // ─── 1. تهيئة قاعدة البيانات (IndexedDB) ───
+    function cacheDOM() {
+        DOM.grid = document.getElementById('fontGrid');
+        DOM.empty = document.getElementById('emptyState');
+        DOM.count = document.getElementById('countDisplay');
+        DOM.search = document.getElementById('searchInput');
+        DOM.preview = document.getElementById('previewInput');
+        DOM.color = document.getElementById('colorPicker');
+        DOM.sizeVal = document.getElementById('sizeValue');
+        
+        // Mobile Drawers
+        DOM.overlay = document.getElementById('overlay');
+        DOM.panelTune = document.getElementById('panelCustomize');
+        DOM.panelSettings = document.getElementById('panelSettings');
+    }
+
+    /* ─── Database ─── */
     function initDB() {
         return new Promise((resolve, reject) => {
-            const request = indexedDB.open(STATE.dbName, STATE.dbVersion);
-            
-            request.onupgradeneeded = (e) => {
+            const req = indexedDB.open(STATE.dbName, 1);
+            req.onupgradeneeded = e => {
                 const db = e.target.result;
-                if (!db.objectStoreNames.contains(STATE.storeName)) {
+                if (!db.objectStoreNames.contains(STATE.storeName))
                     db.createObjectStore(STATE.storeName, { keyPath: 'id', autoIncrement: true });
-                }
             };
-
-            request.onsuccess = (e) => {
-                STATE.db = e.target.result;
-                resolve();
-            };
-
-            request.onerror = (e) => {
-                showToast("خطأ في قاعدة البيانات", true);
-                reject(e);
-            };
+            req.onsuccess = e => { STATE.db = e.target.result; resolve(); };
+            req.onerror = reject;
         });
     }
 
-    // ─── 2. وظائف البيانات (CRUD) ───
     async function loadFonts() {
         const tx = STATE.db.transaction(STATE.storeName, 'readonly');
-        const store = tx.objectStore(STATE.storeName);
-        const request = store.getAll();
-
-        request.onsuccess = () => {
-            STATE.fonts = request.result || [];
+        const req = tx.objectStore(STATE.storeName).getAll();
+        req.onsuccess = () => {
+            STATE.fonts = req.result || [];
             updateStats();
             renderGrid();
         };
     }
 
     async function addFonts(files) {
-        if (STATE.fonts.length >= STATE.maxFonts) {
-            return showToast(`تم الوصول للحد الأقصى (${STATE.maxFonts} خط)`);
-        }
-
-        let addedCount = 0;
+        if (STATE.fonts.length >= 750) return showToast('المكتبة ممتلئة (750 خط)');
+        
         const tx = STATE.db.transaction(STATE.storeName, 'readwrite');
         const store = tx.objectStore(STATE.storeName);
+        let added = 0;
 
         Array.from(files).forEach(file => {
-            // التحقق من الامتداد
-            if (!file.name.match(/\.(ttf|otf|woff|woff2)$/i)) return;
-            
-            // التحقق من حجم الملفات الكلي (تبسيط: نتحقق من العدد هنا، الحجم يعتمد على المتصفح)
-            // الحفظ
-            const fontData = {
-                name: file.name.replace(/\.[^/.]+$/, ""), // إزالة الامتداد
-                type: file.type,
-                blob: file,
-                tag: '',
-                date: Date.now()
-            };
-            store.add(fontData);
-            addedCount++;
+            if (file.name.match(/\.(ttf|otf|woff|woff2)$/i)) {
+                store.add({
+                    name: file.name.replace(/\.[^/.]+$/, ""),
+                    blob: file,
+                    tag: '',
+                    date: Date.now()
+                });
+                added++;
+            }
         });
 
         tx.oncomplete = () => {
-            if (addedCount > 0) {
-                showToast(`تمت إضافة ${addedCount} خط بنجاح`);
-                loadFonts(); // إعادة التحميل
+            if (added) {
+                showToast(`تمت إضافة ${added} خط`);
+                loadFonts();
             }
         };
     }
 
     function deleteFont(id) {
-        if(!confirm('هل أنت متأكد من حذف هذا الخط؟')) return;
-        
+        if(!confirm('حذف هذا الخط؟')) return;
         const tx = STATE.db.transaction(STATE.storeName, 'readwrite');
         tx.objectStore(STATE.storeName).delete(id);
         tx.oncomplete = () => {
             STATE.fonts = STATE.fonts.filter(f => f.id !== id);
-            // إزالة الخط من الذاكرة إذا أمكن (CSS Font Loading API لا يدعم الحذف المباشر بسهولة، لكنه لن يظهر)
             renderGrid();
             updateStats();
             showToast('تم الحذف');
@@ -117,209 +93,189 @@ const App = (function () {
     }
 
     function clearAll() {
-        if(!confirm('تحذير: سيتم حذف جميع الخطوط من المكتبة!')) return;
-        
+        if(!confirm('هل أنت متأكد من حذف جميع الخطوط؟')) return;
         const tx = STATE.db.transaction(STATE.storeName, 'readwrite');
         tx.objectStore(STATE.storeName).clear();
-        tx.oncomplete = () => {
-            STATE.fonts = [];
-            window.location.reload(); // أسهل طريقة لتنظيف الذاكرة
-        };
+        tx.oncomplete = () => window.location.reload();
     }
 
-    function updateTag(id, newTag) {
+    function updateTag(id, val) {
         const font = STATE.fonts.find(f => f.id === id);
-        if (font) {
-            font.tag = newTag;
+        if(font) {
+            font.tag = val;
             const tx = STATE.db.transaction(STATE.storeName, 'readwrite');
             tx.objectStore(STATE.storeName).put(font);
         }
     }
 
-    // ─── 3. إدارة تحميل الخطوط (Font Loading API) ───
-    async function activateFont(fontObj) {
-        // إنشاء اسم فريد CSS Safe
-        const familyName = `font_${fontObj.id}`;
+    /* ─── Font Loading ─── */
+    async function activateFont(font) {
+        const family = `f_${font.id}`;
+        if (STATE.loadedFonts.has(family)) return family;
         
-        if (STATE.loadedFonts.has(familyName)) return familyName;
-
         try {
-            const buffer = await fontObj.blob.arrayBuffer();
-            const fontFace = new FontFace(familyName, buffer);
-            await fontFace.load();
-            document.fonts.add(fontFace);
-            STATE.loadedFonts.add(familyName);
-            return familyName;
-        } catch (err) {
-            console.error('فشل تحميل الخط:', fontObj.name);
-            return 'sans-serif'; // Fallback
-        }
+            const buff = await font.blob.arrayBuffer();
+            const face = new FontFace(family, buff);
+            await face.load();
+            document.fonts.add(face);
+            STATE.loadedFonts.add(family);
+            return family;
+        } catch(e) { return 'sans-serif'; }
     }
 
-    // ─── 4. العرض (Rendering) ───
+    /* ─── Rendering ─── */
     function renderGrid() {
-        const query = STATE.searchQuery.toLowerCase();
-        const filtered = STATE.fonts.filter(f => f.name.toLowerCase().includes(query));
-
-        // حالة فارغة
-        if (STATE.fonts.length === 0) {
-            DOM.grid.style.display = 'none';
-            DOM.empty.style.display = 'flex';
-            return;
-        } else {
-            DOM.grid.style.display = 'grid';
-            DOM.empty.style.display = 'none';
-        }
-
-        DOM.grid.innerHTML = '';
+        const q = STATE.searchQuery.toLowerCase();
+        const list = STATE.fonts.filter(f => f.name.toLowerCase().includes(q));
         
-        // استخدام DocumentFragment للأداء
-        const frag = document.createDocumentFragment();
+        DOM.grid.style.display = list.length ? 'grid' : 'none';
+        DOM.empty.style.display = list.length ? 'none' : 'flex';
+        DOM.grid.innerHTML = '';
 
-        filtered.forEach(font => {
+        const frag = document.createDocumentFragment();
+        
+        list.forEach(font => {
             const card = document.createElement('div');
             card.className = 'font-card';
             
-            // سنقوم بتحميل الخط فقط عند إنشاء البطاقة
-            // ملاحظة: لتحسين الأداء أكثر يمكن استخدام IntersectionObserver لتحميل الخطوط فقط عند ظهورها
-            activateFont(font).then(family => {
-                const previewEl = card.querySelector('.card-preview-text');
-                if(previewEl) previewEl.style.fontFamily = `"${family}", sans-serif`;
+            // تحميل الخط
+            activateFont(font).then(fam => {
+                const el = card.querySelector('.preview-text');
+                if(el) el.style.fontFamily = `"${fam}"`;
             });
 
             card.innerHTML = `
-                <div class="card-header">
-                    <span class="font-name" title="${font.name}">${font.name}</span>
-                    <button class="btn-delete" onclick="App.deleteFont(${font.id})">
+                <div class="card-top">
+                    <button class="font-name-btn" title="نسخ الاسم" onclick="App.copyName('${font.name}')">
+                        ${font.name}
+                    </button>
+                    <button class="card-del-btn" onclick="App.deleteFont(${font.id})">
                         <i data-lucide="x" width="16"></i>
                     </button>
                 </div>
-                <div class="card-preview" style="color: ${STATE.previewColor}">
-                    <span class="card-preview-text" style="font-size: ${STATE.previewSize}px;">
+                <div class="card-preview" style="color:${STATE.previewColor}">
+                    <span class="preview-text" style="font-size:${STATE.previewSize}px">
                         ${STATE.previewText}
                     </span>
                 </div>
-                <div class="card-footer">
-                    <input type="text" class="tag-input" 
-                           placeholder="أضف وسم..." 
-                           value="${font.tag || ''}"
-                           onchange="App.updateTag(${font.id}, this.value)">
+                <div class="card-bottom">
+                    <input type="text" class="card-tag" placeholder="+ وسم" 
+                           value="${font.tag||''}" onchange="App.updateTag(${font.id}, this.value)">
                 </div>
             `;
             frag.appendChild(card);
         });
-
+        
         DOM.grid.appendChild(frag);
-        if (window.lucide) lucide.createIcons();
+        if(window.lucide) lucide.createIcons();
     }
 
-    // تحديثات خفيفة (تغيير الحجم/اللون/النص) دون إعادة بناء DOM
     function updateVisuals() {
-        const previews = document.querySelectorAll('.card-preview-text');
-        const containers = document.querySelectorAll('.card-preview');
+        const txts = document.querySelectorAll('.preview-text');
+        const wins = document.querySelectorAll('.card-preview');
         
         requestAnimationFrame(() => {
-            containers.forEach(el => el.style.color = STATE.previewColor);
-            previews.forEach(el => {
-                el.style.fontSize = `${STATE.previewSize}px`;
-                el.textContent = STATE.previewText;
+            wins.forEach(d => d.style.color = STATE.previewColor);
+            txts.forEach(t => {
+                t.style.fontSize = STATE.previewSize + 'px';
+                t.textContent = STATE.previewText;
             });
+            DOM.sizeVal.textContent = STATE.previewSize;
         });
-        
-        DOM.sizeVal.textContent = STATE.previewSize;
     }
 
     function updateStats() {
-        const count = STATE.fonts.length;
-        DOM.count.textContent = count;
-        const pct = (count / STATE.maxFonts) * 100;
-        DOM.fill.style.width = `${pct}%`;
-        
-        // تغيير لون البار إذا اقترب من الامتلاء
-        DOM.fill.style.background = pct > 90 ? '#d32f2f' : 'var(--primary)';
+        DOM.count.textContent = STATE.fonts.length;
     }
 
-    // ─── 5. التصدير (PDF) ───
+    function copyName(text) {
+        navigator.clipboard.writeText(text).then(() => showToast('تم نسخ اسم الخط'));
+    }
+
+    /* ─── Export ─── */
     async function exportPDF() {
-        if (STATE.fonts.length === 0) return showToast('لا توجد خطوط للتصدير', true);
+        if(!STATE.fonts.length) return;
+        showToast('جاري التحضير...');
         
-        showToast('جاري تحضير المستند...');
-        const tbody = document.getElementById('printBody');
-        tbody.innerHTML = '';
-        document.getElementById('printDate').textContent = new Date().toLocaleDateString('ar-EG');
+        const body = document.getElementById('printBody');
+        body.innerHTML = '';
+        document.getElementById('printDate').textContent = new Date().toLocaleDateString('ar');
 
-        // ننتظر تحميل جميع الخطوط لضمان ظهورها في الطباعة
-        const loadPromises = STATE.fonts.map(f => activateFont(f));
-        await Promise.all(loadPromises);
+        await Promise.all(STATE.fonts.map(activateFont));
 
-        STATE.fonts.forEach(font => {
-            const family = `font_${font.id}`;
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td><strong>${font.name}</strong></td>
-                <td class="preview-cell" style="font-family: '${family}';">${STATE.previewText}</td>
-                <td>${font.tag || '-'}</td>
+        STATE.fonts.forEach(f => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${f.name}</td>
+                <td style="font-family:'f_${f.id}'; direction:rtl; font-size:24px;">${STATE.previewText}</td>
+                <td>${f.tag||''}</td>
             `;
-            tbody.appendChild(row);
+            body.appendChild(tr);
         });
-
-        // تأخير بسيط لضمان الريندر
         setTimeout(() => window.print(), 500);
     }
 
-    // ─── 6. الأدوات المساعدة ───
-    function showToast(msg, isError = false) {
-        const t = document.getElementById('toast');
-        t.textContent = msg;
-        t.style.background = isError ? '#D32F2F' : '#333';
-        t.classList.add('show');
-        setTimeout(() => t.classList.remove('show'), 3000);
+    /* ─── Mobile Logic ─── */
+    function toggleDrawer(drawerId, show) {
+        const drawer = document.getElementById(drawerId);
+        if(show) {
+            // Close others first
+            DOM.panelTune.classList.remove('active');
+            DOM.panelSettings.classList.remove('active');
+            
+            drawer.classList.add('active');
+            DOM.overlay.classList.add('active');
+        } else {
+            drawer.classList.remove('active');
+            DOM.overlay.classList.remove('active');
+        }
     }
 
-    // ─── 7. التهيئة والربط ───
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2000);
+    }
+
     function init() {
+        cacheDOM();
         initDB().then(loadFonts);
-
-        // Events
-        document.getElementById('fileUpload').onchange = (e) => addFonts(e.target.files);
-        document.getElementById('fileUploadEmpty').onchange = (e) => addFonts(e.target.files);
         
-        DOM.search.oninput = (e) => {
-            STATE.searchQuery = e.target.value;
-            renderGrid();
-        };
-
-        DOM.preview.oninput = (e) => {
-            STATE.previewText = e.target.value || 'Preview';
-            updateVisuals();
-        };
-
-        DOM.color.oninput = (e) => {
-            STATE.previewColor = e.target.value;
-            updateVisuals();
-        };
-
-        document.getElementById('sizeInc').onclick = () => {
-            if(STATE.previewSize < 100) { STATE.previewSize += 4; updateVisuals(); }
-        };
-        document.getElementById('sizeDec').onclick = () => {
-            if(STATE.previewSize > 12) { STATE.previewSize -= 4; updateVisuals(); }
-        };
-
+        // Events
+        DOM.search.oninput = e => { STATE.searchQuery = e.target.value; renderGrid(); };
+        DOM.preview.oninput = e => { STATE.previewText = e.target.value||' '; updateVisuals(); };
+        DOM.color.oninput = e => { STATE.previewColor = e.target.value; updateVisuals(); };
+        
+        document.getElementById('sizeInc').onclick = () => { STATE.previewSize+=4; updateVisuals(); };
+        document.getElementById('sizeDec').onclick = () => { if(STATE.previewSize>12) STATE.previewSize-=4; updateVisuals(); };
+        
+        // Buttons
+        document.getElementById('fileUploadDesktop').onchange = e => addFonts(e.target.files);
+        document.getElementById('fileUploadMobile').onchange = e => addFonts(e.target.files);
         document.getElementById('btnClear').onclick = clearAll;
         document.getElementById('btnExport').onclick = exportPDF;
 
-        // Init Icons
-        if (window.lucide) lucide.createIcons();
+        // Mobile Drawers
+        document.getElementById('btnOpenTune').onclick = () => toggleDrawer('panelCustomize', true);
+        document.getElementById('btnOpenMenu').onclick = () => toggleDrawer('panelSettings', true);
+        
+        DOM.overlay.onclick = () => {
+            toggleDrawer('panelCustomize', false);
+            toggleDrawer('panelSettings', false);
+        };
+        
+        document.querySelectorAll('.close-panel').forEach(btn => {
+            btn.onclick = () => {
+                toggleDrawer('panelCustomize', false);
+                toggleDrawer('panelSettings', false);
+            };
+        });
+
+        if(window.lucide) lucide.createIcons();
     }
 
-    // تصدير الوظائف التي تحتاجها HTML
-    return {
-        init,
-        deleteFont,
-        updateTag
-    };
-
+    return { init, deleteFont, updateTag, copyName };
 })();
 
 window.addEventListener('DOMContentLoaded', App.init);

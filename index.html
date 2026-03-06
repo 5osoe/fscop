@@ -3,112 +3,138 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>مدير الخطوط | Font Pro</title>
-    <meta name="description" content="نظام إدارة ومعاينة الخطوط الاحترافي">
+    <title>FontScope</title>
+    <meta name="description" content="FontScope - Professional Font Manager">
     
-    <!-- خطوط عربية احترافية -->
+    <!-- خطوط عربية واجنبية احترافية -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
     
-    <!-- أيقونات -->
+    <!-- مكتبة الأيقونات -->
     <script src="https://unpkg.com/lucide@latest" defer></script>
     
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-    <!-- الشريط العلوي الثابت -->
-    <header class="app-header">
-        <div class="header-inner">
-            <div class="brand">
-                <div class="logo-box">
-                    <i data-lucide="type"></i>
-                </div>
-                <h1>مدير الخطوط</h1>
+    <!-- 1. الرأس الرئيسي (مشترك) -->
+    <header class="main-header">
+        <div class="header-content">
+            <!-- الشعار النصي فقط -->
+            <div class="brand-name">FontScope</div>
+
+            <!-- أزرار الهاتف (تظهر فقط في الجوال) -->
+            <div class="mobile-actions">
+                <label class="icon-btn-mobile" title="رفع خطوط">
+                    <i data-lucide="upload-cloud"></i>
+                    <input type="file" id="fileUploadMobile" multiple accept=".ttf,.otf,.woff,.woff2" hidden>
+                </label>
+                <button class="icon-btn-mobile" id="btnOpenTune" title="تخصيص العرض">
+                    <i data-lucide="sliders-horizontal"></i>
+                </button>
+                <button class="icon-btn-mobile" id="btnOpenMenu" title="الإعدادات">
+                    <i data-lucide="menu"></i>
+                </button>
             </div>
 
-            <div class="header-controls">
-                <!-- حالة الذاكرة -->
-                <div class="storage-indicator" title="حالة التخزين">
-                    <div class="storage-text">
-                        <span id="countDisplay">0</span> / 750
-                    </div>
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="storageFill"></div>
-                    </div>
-                </div>
-
-                <!-- زر الرفع -->
+            <!-- أزرار الكمبيوتر (زر الرفع فقط، الباقي في الشريط السفلي للرأس) -->
+            <div class="desktop-actions">
                 <label class="btn btn-primary">
                     <i data-lucide="upload-cloud"></i>
-                    <span class="hide-mobile">رفع خطوط</span>
-                    <input type="file" id="fileUpload" multiple accept=".ttf,.otf,.woff,.woff2" hidden>
+                    <span>رفع خطوط</span>
+                    <input type="file" id="fileUploadDesktop" multiple accept=".ttf,.otf,.woff,.woff2" hidden>
                 </label>
-            </div>
-        </div>
-
-        <!-- شريط الأدوات (بحث + معاينة) -->
-        <div class="toolbar">
-            <div class="search-group">
-                <i data-lucide="search" class="icon-gray"></i>
-                <input type="text" id="searchInput" placeholder="بحث باسم الخط...">
-            </div>
-            
-            <div class="preview-group">
-                <input type="text" id="previewInput" value="سبحان الله وبحمده" placeholder="نص المعاينة...">
-            </div>
-
-            <div class="display-settings">
-                <div class="control-box">
-                    <button id="sizeDec" aria-label="تصغير"><i data-lucide="minus"></i></button>
-                    <span id="sizeValue">32</span>
-                    <button id="sizeInc" aria-label="تكبير"><i data-lucide="plus"></i></button>
-                </div>
-                <div class="color-box">
-                    <input type="color" id="colorPicker" value="#000000">
-                </div>
             </div>
         </div>
     </header>
 
-    <!-- منطقة العمل الرئيسية -->
-    <main class="main-container">
-        <!-- شبكة الخطوط -->
-        <div id="fontGrid" class="font-grid">
-            <!-- يتم توليد البطاقات هنا بالجافاسكربت -->
+    <!-- 2. حاويات التحكم (تعمل كشريط في الكمبيوتر وكقوائم في الهاتف) -->
+    
+    <!-- أ: قائمة التخصيص (نص المعاينة، الحجم، اللون) -->
+    <div id="panelCustomize" class="control-panel panel-tune">
+        <div class="panel-header-mobile">
+            <h3>تخصيص العرض</h3>
+            <button class="close-panel"><i data-lucide="x"></i></button>
         </div>
+        
+        <div class="panel-body">
+            <!-- نص المعاينة -->
+            <div class="input-group full-width">
+                <input type="text" id="previewInput" value="سبحان الله وبحمده" placeholder="نص المعاينة...">
+            </div>
+
+            <!-- الحجم -->
+            <div class="control-box">
+                <button id="sizeDec"><i data-lucide="minus"></i></button>
+                <span id="sizeValue">32</span>
+                <button id="sizeInc"><i data-lucide="plus"></i></button>
+            </div>
+
+            <!-- اللون -->
+            <div class="color-wrapper">
+                <input type="color" id="colorPicker" value="#000000">
+            </div>
+        </div>
+    </div>
+
+    <!-- ب: قائمة الإعدادات والبحث (البحث، العداد، التصدير، الحذف) -->
+    <div id="panelSettings" class="control-panel panel-settings">
+        <div class="panel-header-mobile">
+            <h3>الإعدادات والمكتبة</h3>
+            <button class="close-panel"><i data-lucide="x"></i></button>
+        </div>
+
+        <div class="panel-body">
+            <!-- البحث -->
+            <div class="search-box full-width">
+                <i data-lucide="search"></i>
+                <input type="text" id="searchInput" placeholder="بحث باسم الخط...">
+            </div>
+
+            <!-- العداد -->
+            <div class="stats-box">
+                <span class="stats-label">الخطوط المحملة</span>
+                <span class="stats-val"><b id="countDisplay">0</b> / 750</span>
+            </div>
+
+            <hr class="mobile-divider">
+
+            <!-- الإجراءات -->
+            <div class="actions-group">
+                <button class="btn btn-outline full-width" id="btnExport">
+                    <i data-lucide="file-down"></i>
+                    <span>تصدير PDF</span>
+                </button>
+                <button class="btn btn-danger full-width" id="btnClear">
+                    <i data-lucide="trash-2"></i>
+                    <span>حذف الكل</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- طبقة التعتيم للخلفية (للموبايل فقط) -->
+    <div id="overlay" class="overlay"></div>
+
+    <!-- 3. منطقة العمل الرئيسية -->
+    <main class="main-container">
+        <div id="fontGrid" class="font-grid"></div>
 
         <!-- الحالة الفارغة -->
         <div id="emptyState" class="empty-state">
             <div class="empty-icon">
-                <i data-lucide="folder-open"></i>
+                <i data-lucide="type"></i>
             </div>
             <h3>المكتبة فارغة</h3>
-            <p>قم برفع ملفات الخطوط (TTF, OTF, WOFF) لتبدأ العمل</p>
-            <label class="btn btn-outline">
-                استعراض الملفات
-                <input type="file" id="fileUploadEmpty" multiple accept=".ttf,.otf,.woff,.woff2" hidden>
-            </label>
+            <p>ابدأ برفع ملفات الخطوط لتكوين مكتبتك الخاصة</p>
         </div>
     </main>
-
-    <!-- الشريط السفلي للجوال / إجراءات إضافية -->
-    <div class="actions-bar">
-        <button class="action-btn" id="btnExport">
-            <i data-lucide="file-down"></i>
-            <span>تصدير PDF</span>
-        </button>
-        <button class="action-btn danger" id="btnClear">
-            <i data-lucide="trash-2"></i>
-            <span>حذف الكل</span>
-        </button>
-    </div>
 
     <!-- منطقة الطباعة المخفية -->
     <div id="printArea">
         <div class="print-header">
-            <h2>تقرير الخطوط</h2>
+            <h2>تقرير الخطوط - FontScope</h2>
             <p id="printDate"></p>
         </div>
         <table class="print-table">
@@ -124,7 +150,7 @@
     </div>
 
     <!-- الإشعارات -->
-    <div id="toast" class="toast">تمت العملية بنجاح</div>
+    <div id="toast" class="toast">تم النسخ</div>
 
     <script src="app.js"></script>
 </body>
