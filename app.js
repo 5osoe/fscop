@@ -1,7 +1,7 @@
 const App = (function () {
     
     const STATE = {
-        dbName: 'FontScopeDB',
+        dbName: 'FontScopeDB_V2', // غيرت الاسم لتجنب تضارب الكاش القديم
         storeName: 'fonts',
         db: null,
         fonts: [],
@@ -23,10 +23,16 @@ const App = (function () {
         DOM.color = document.getElementById('colorPicker');
         DOM.sizeVal = document.getElementById('sizeValue');
         
-        // Mobile Drawers
+        // Popups
         DOM.overlay = document.getElementById('overlay');
         DOM.panelTune = document.getElementById('panelCustomize');
         DOM.panelSettings = document.getElementById('panelSettings');
+        
+        // Loading
+        DOM.loadingOverlay = document.getElementById('loadingOverlay');
+        DOM.loadingBar = document.getElementById('loadingBar');
+        DOM.loadingPercent = document.getElementById('loadingPercent');
+        DOM.loadingText = document.getElementById('loadingText');
     }
 
     /* ─── Database ─── */
@@ -53,31 +59,70 @@ const App = (function () {
         };
     }
 
+    /* ─── Add Fonts with Loading Bar ─── */
     async function addFonts(files) {
         if (STATE.fonts.length >= 750) return showToast('المكتبة ممتلئة (750 خط)');
+        
+        const validFiles = Array.from(files).filter(f => f.name.match(/\.(ttf|otf|woff|woff2)$/i));
+        if(validFiles.length === 0) return;
+
+        // Show Loading
+        toggleLoading(true, 0);
         
         const tx = STATE.db.transaction(STATE.storeName, 'readwrite');
         const store = tx.objectStore(STATE.storeName);
         let added = 0;
+        const total = validFiles.length;
 
-        Array.from(files).forEach(file => {
-            if (file.name.match(/\.(ttf|otf|woff|woff2)$/i)) {
-                store.add({
-                    name: file.name.replace(/\.[^/.]+$/, ""),
-                    blob: file,
-                    tag: '',
-                    date: Date.now()
-                });
-                added++;
+        // Process sequentially with small delays to allow UI updates
+        for (let i = 0; i < total; i++) {
+            const file = validFiles[i];
+            
+            store.add({
+                name: file.name.replace(/\.[^/.]+$/, ""),
+                blob: file,
+                tag: '',
+                date: Date.now()
+            });
+            added++;
+
+            // Update UI every 5 files or on last one to save redraws
+            if (i % 5 === 0 || i === total - 1) {
+                const percent = Math.round(((i + 1) / total) * 100);
+                updateLoadingProgress(percent);
+                await new Promise(r => setTimeout(r, 0)); // Yield to UI thread
             }
-        });
+        }
 
         tx.oncomplete = () => {
-            if (added) {
-                showToast(`تمت إضافة ${added} خط`);
-                loadFonts();
-            }
+            setTimeout(() => {
+                toggleLoading(false);
+                if (added) {
+                    showToast(`تمت إضافة ${added} خط`);
+                    loadFonts();
+                }
+            }, 500); // Small delay to see 100%
         };
+        
+        tx.onerror = () => {
+            toggleLoading(false);
+            showToast('حدث خطأ أثناء الحفظ');
+        };
+    }
+
+    function toggleLoading(show, percent = 0) {
+        if(show) {
+            DOM.loadingOverlay.classList.add('active');
+            updateLoadingProgress(percent);
+        } else {
+            DOM.loadingOverlay.classList.remove('active');
+        }
+    }
+
+    function updateLoadingProgress(pct) {
+        DOM.loadingBar.style.width = pct + '%';
+        DOM.loadingPercent.textContent = pct + '%';
+        DOM.loadingText.textContent = pct < 100 ? 'جاري المعالجة...' : 'جاري الحفظ...';
     }
 
     function deleteFont(id) {
@@ -138,7 +183,6 @@ const App = (function () {
             const card = document.createElement('div');
             card.className = 'font-card';
             
-            // تحميل الخط
             activateFont(font).then(fam => {
                 const el = card.querySelector('.preview-text');
                 if(el) el.style.fontFamily = `"${fam}"`;
@@ -146,10 +190,10 @@ const App = (function () {
 
             card.innerHTML = `
                 <div class="card-top">
-                    <button class="font-name-btn" title="نسخ الاسم" onclick="App.copyName('${font.name}')">
+                    <button class="card-name" title="نسخ الاسم" onclick="App.copyName('${font.name}')">
                         ${font.name}
                     </button>
-                    <button class="card-del-btn" onclick="App.deleteFont(${font.id})">
+                    <button style="border:none;background:none;cursor:pointer;color:#aaa" onclick="App.deleteFont(${font.id})">
                         <i data-lucide="x" width="16"></i>
                     </button>
                 </div>
@@ -189,10 +233,10 @@ const App = (function () {
     }
 
     function copyName(text) {
-        navigator.clipboard.writeText(text).then(() => showToast('تم نسخ اسم الخط'));
+        navigator.clipboard.writeText(text).then(() => showToast('تم نسخ الاسم'));
     }
 
-    /* ─── Export ─── */
+    /* ─── PDF Export ─── */
     async function exportPDF() {
         if(!STATE.fonts.length) return;
         showToast('جاري التحضير...');
@@ -215,19 +259,21 @@ const App = (function () {
         setTimeout(() => window.print(), 500);
     }
 
-    /* ─── Mobile Logic ─── */
-    function toggleDrawer(drawerId, show) {
-        const drawer = document.getElementById(drawerId);
+    /* ─── Popup Logic ─── */
+    function togglePopup(popupId, show) {
+        const popup = document.getElementById(popupId);
+        
+        // Hide others if opening
         if(show) {
-            // Close others first
-            DOM.panelTune.classList.remove('active');
-            DOM.panelSettings.classList.remove('active');
-            
-            drawer.classList.add('active');
+            [DOM.panelTune, DOM.panelSettings].forEach(p => p.classList.remove('active'));
+            popup.classList.add('active');
             DOM.overlay.classList.add('active');
         } else {
-            drawer.classList.remove('active');
-            DOM.overlay.classList.remove('active');
+            popup.classList.remove('active');
+            // Only hide overlay if both are closed
+            if(!DOM.panelTune.classList.contains('active') && !DOM.panelSettings.classList.contains('active')) {
+                DOM.overlay.classList.remove('active');
+            }
         }
     }
 
@@ -242,7 +288,7 @@ const App = (function () {
         cacheDOM();
         initDB().then(loadFonts);
         
-        // Events
+        // Listeners
         DOM.search.oninput = e => { STATE.searchQuery = e.target.value; renderGrid(); };
         DOM.preview.oninput = e => { STATE.previewText = e.target.value||' '; updateVisuals(); };
         DOM.color.oninput = e => { STATE.previewColor = e.target.value; updateVisuals(); };
@@ -250,25 +296,19 @@ const App = (function () {
         document.getElementById('sizeInc').onclick = () => { STATE.previewSize+=4; updateVisuals(); };
         document.getElementById('sizeDec').onclick = () => { if(STATE.previewSize>12) STATE.previewSize-=4; updateVisuals(); };
         
-        // Buttons
-        document.getElementById('fileUploadDesktop').onchange = e => addFonts(e.target.files);
-        document.getElementById('fileUploadMobile').onchange = e => addFonts(e.target.files);
+        document.getElementById('fileUpload').onchange = e => addFonts(e.target.files);
         document.getElementById('btnClear').onclick = clearAll;
         document.getElementById('btnExport').onclick = exportPDF;
 
-        // Mobile Drawers
-        document.getElementById('btnOpenTune').onclick = () => toggleDrawer('panelCustomize', true);
-        document.getElementById('btnOpenMenu').onclick = () => toggleDrawer('panelSettings', true);
+        // Toggle Popups
+        document.getElementById('btnOpenTune').onclick = () => togglePopup('panelCustomize', true);
+        document.getElementById('btnOpenMenu').onclick = () => togglePopup('panelSettings', true);
         
-        DOM.overlay.onclick = () => {
-            toggleDrawer('panelCustomize', false);
-            toggleDrawer('panelSettings', false);
-        };
-        
-        document.querySelectorAll('.close-panel').forEach(btn => {
-            btn.onclick = () => {
-                toggleDrawer('panelCustomize', false);
-                toggleDrawer('panelSettings', false);
+        // Close Buttons & Overlay
+        DOM.overlay.onclick = () => { togglePopup('panelCustomize', false); togglePopup('panelSettings', false); };
+        document.querySelectorAll('.close-panel').forEach(b => {
+            b.onclick = function() {
+                togglePopup(this.closest('.control-panel').id, false);
             };
         });
 
