@@ -1,10 +1,11 @@
-const CACHE_NAME = 'fontscope-v1';
+const CACHE_NAME = 'fontscope-v2';
 const ASSETS = [
   './',
   './index.html',
   './styles.css',
   './app.js',
-  './manifest.json'
+  './manifest.json',
+  './icon-512.png'
 ];
 
 self.addEventListener('install', (e) => {

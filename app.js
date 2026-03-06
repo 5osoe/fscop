@@ -10,7 +10,7 @@ const App = (function () {
         previewColor: '#000000',
         searchQuery: '',
         loadedFonts: new Set(),
-        deferredPrompt: null // For PWA
+        deferredPrompt: null
     };
 
     const DOM = {};
@@ -28,12 +28,12 @@ const App = (function () {
         DOM.panelTune = document.getElementById('panelCustomize');
         DOM.panelSettings = document.getElementById('panelSettings');
         
-        DOM.loadingOverlay = document.getElementById('loadingOverlay');
-        DOM.loadingBar = document.getElementById('loadingBar');
-        DOM.loadingPercent = document.getElementById('loadingPercent');
-        DOM.loadingText = document.getElementById('loadingText');
+        // Progress Bar DOM
+        DOM.upProgress = document.getElementById('uploadProgress');
+        DOM.upBar = document.getElementById('upBar');
+        DOM.upPct = document.getElementById('upPct');
+        DOM.upText = document.getElementById('upText');
 
-        // PWA Button
         DOM.btnInstall = document.getElementById('btnInstallApp');
     }
 
@@ -61,7 +61,7 @@ const App = (function () {
         };
     }
 
-    /* ─── Optimized Batch Upload (Fix for Freezing) ─── */
+    /* ─── Batch Upload with Progress Bar ─── */
     async function addFonts(filesList) {
         if (STATE.fonts.length >= 750) return showToast('المكتبة ممتلئة (750 خط)');
         
@@ -69,48 +69,42 @@ const App = (function () {
         const total = validFiles.length;
         if(total === 0) return;
 
-        // Start Loading
-        toggleLoading(true, 0);
+        // Show Progress Bar
+        toggleUploadBar(true, 0);
 
-        const BATCH_SIZE = 50; // Process 50 files at a time to prevent UI freeze
+        const BATCH_SIZE = 50;
         let processed = 0;
         let addedCount = 0;
 
-        // Chunk processing function
         for (let i = 0; i < total; i += BATCH_SIZE) {
             const batch = validFiles.slice(i, i + BATCH_SIZE);
-            
-            // Wait for this batch to be stored in DB before moving to next
             const success = await saveBatchToDB(batch);
             
             if (success) {
                 processed += batch.length;
                 addedCount += batch.length;
                 
-                // Update UI
                 const pct = Math.round((processed / total) * 100);
-                updateLoadingProgress(pct);
+                updateUploadProgress(pct);
                 
-                // Small breathing room for UI thread to update render
+                // Breath for UI
                 await new Promise(resolve => setTimeout(resolve, 50));
             }
         }
 
-        // Finish
         setTimeout(() => {
-            toggleLoading(false);
+            toggleUploadBar(false);
             if (addedCount > 0) {
-                showToast(`تمت إضافة ${addedCount} خط بنجاح`);
+                showToast(`تمت إضافة ${addedCount} خط`);
                 loadFonts();
             }
-        }, 500);
+        }, 800);
     }
 
     function saveBatchToDB(files) {
         return new Promise((resolve) => {
             const tx = STATE.db.transaction(STATE.storeName, 'readwrite');
             const store = tx.objectStore(STATE.storeName);
-
             files.forEach(file => {
                 store.add({
                     name: file.name.replace(/\.[^/.]+$/, ""),
@@ -119,28 +113,24 @@ const App = (function () {
                     date: Date.now()
                 });
             });
-
             tx.oncomplete = () => resolve(true);
-            tx.onerror = (e) => {
-                console.error("Batch Error", e);
-                resolve(false); // Continue even if one batch fails
-            };
+            tx.onerror = () => resolve(false);
         });
     }
 
-    function toggleLoading(show, percent = 0) {
+    function toggleUploadBar(show, percent = 0) {
         if(show) {
-            DOM.loadingOverlay.classList.add('active');
-            updateLoadingProgress(percent);
+            DOM.upProgress.classList.add('active');
+            updateUploadProgress(percent);
         } else {
-            DOM.loadingOverlay.classList.remove('active');
+            DOM.upProgress.classList.remove('active');
         }
     }
 
-    function updateLoadingProgress(pct) {
-        DOM.loadingBar.style.width = pct + '%';
-        DOM.loadingPercent.textContent = pct + '%';
-        DOM.loadingText.textContent = pct < 100 ? 'جاري المعالجة...' : 'اكتمل!';
+    function updateUploadProgress(pct) {
+        DOM.upBar.style.width = pct + '%';
+        DOM.upPct.textContent = pct + '%';
+        DOM.upText.textContent = pct < 100 ? `جاري رفع الخطوط (${pct}%)` : 'اكتمل الرفع';
     }
 
     /* ─── CRUD ─── */
@@ -207,7 +197,7 @@ const App = (function () {
 
             card.innerHTML = `
                 <div class="card-top">
-                    <button class="card-name" title="نسخ الاسم" onclick="App.copyName('${font.name}')">
+                    <button class="card-name" title="نسخ" onclick="App.copyName('${font.name}')">
                         ${font.name}
                     </button>
                     <button style="border:none;background:none;cursor:pointer;color:#aaa" onclick="App.deleteFont(${font.id})">
@@ -249,49 +239,42 @@ const App = (function () {
     }
 
     function copyName(text) {
-        navigator.clipboard.writeText(text).then(() => showToast('تم نسخ الاسم'));
+        navigator.clipboard.writeText(text).then(() => showToast('تم النسخ'));
     }
 
-    /* ─── PWA & Helpers ─── */
+    /* ─── PWA ─── */
     function initPWA() {
         window.addEventListener('beforeinstallprompt', (e) => {
-            // Prevent Chrome 67 and earlier from automatically showing the prompt
             e.preventDefault();
-            // Stash the event so it can be triggered later.
             STATE.deferredPrompt = e;
-            // Update UI to notify the user they can add to home screen
             DOM.btnInstall.style.display = 'flex';
         });
-
         DOM.btnInstall.addEventListener('click', () => {
-            // Hide our user interface that shows our A2HS button
             DOM.btnInstall.style.display = 'none';
-            // Show the prompt
             if (STATE.deferredPrompt) {
                 STATE.deferredPrompt.prompt();
-                // Wait for the user to respond to the prompt
-                STATE.deferredPrompt.userChoice.then((choiceResult) => {
-                    STATE.deferredPrompt = null;
-                });
+                STATE.deferredPrompt.userChoice.then(() => STATE.deferredPrompt = null);
             }
         });
     }
 
+    /* ─── PDF Export (Clean) ─── */
     async function exportPDF() {
         if(!STATE.fonts.length) return;
-        showToast('جاري التحضير...');
+        showToast('جاري تحضير الجدول...');
         
         const body = document.getElementById('printBody');
         body.innerHTML = '';
-        document.getElementById('printDate').textContent = new Date().toLocaleDateString('ar');
-
+        
+        // Ensure all fonts are loaded
         await Promise.all(STATE.fonts.map(activateFont));
 
         STATE.fonts.forEach(f => {
             const tr = document.createElement('tr');
+            const family = `f_${f.id}`;
             tr.innerHTML = `
                 <td>${f.name}</td>
-                <td style="font-family:'f_${f.id}'; direction:rtl; font-size:24px;">${STATE.previewText}</td>
+                <td style="font-family:'${family}'; font-size:24px;">${STATE.previewText}</td>
                 <td>${f.tag||''}</td>
             `;
             body.appendChild(tr);
