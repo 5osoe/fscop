@@ -1,6 +1,6 @@
 /**
  * Font Scope Pro - V4.0 Stable (Secured)
- * Limited to 500 Fonts
+ * Limited to 750 Fonts / 75MB per file
  * Production Refactor
  */
 
@@ -19,9 +19,9 @@ const App = (function() {
         isProcessing: false
     };
 
-    // HARD LIMITS
-    const MAX_FONTS = 500;
-    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+    // HARD LIMITS — Updated
+    const MAX_FONTS = 750;
+    const MAX_FILE_SIZE = 75 * 1024 * 1024; // 75MB
 
     // State Hardening
     Object.seal(STATE);
@@ -110,7 +110,7 @@ const App = (function() {
             for (let i = 0; i < rules.length; i++) {
                 if (rules[i].cssText.includes(`font-family: "${fontId}"`)) {
                     MasterStyle.sheet.deleteRule(i);
-                    return; 
+                    return;
                 }
             }
         },
@@ -142,7 +142,6 @@ const App = (function() {
             if (textContent) el.textContent = textContent;
             return el;
         },
-        // --- Added: Magic Bytes Check ---
         checkSignature: (file) => {
             return new Promise((resolve) => {
                 const slice = file.slice(0, 4);
@@ -151,8 +150,7 @@ const App = (function() {
                     try {
                         const view = new DataView(e.target.result);
                         if (view.byteLength < 4) return resolve(false);
-                        const magic = view.getUint32(0, false); // Big-endian
-                        // TTF=00010000, OTF=4F54544F, WOFF=774F4646, WOFF2=774F4632
+                        const magic = view.getUint32(0, false);
                         const valid = [0x00010000, 0x4F54544F, 0x774F4646, 0x774F4632].includes(magic);
                         resolve(valid);
                     } catch (err) { resolve(false); }
@@ -180,7 +178,7 @@ const App = (function() {
             console.error(e);
             toast("فشل تحميل البيانات", "error");
         }
-        
+
         setupListeners();
         lucide.createIcons();
     }
@@ -191,7 +189,7 @@ const App = (function() {
         DOM.grid.innerHTML = '';
         STATE.renderedMap.clear();
         STATE.previewNodes = [];
-        
+
         MasterStyle.clear();
         STATE.loadedFonts.clear();
 
@@ -217,15 +215,15 @@ const App = (function() {
 
         const rule = `@font-face { font-family: "${fontId}"; src: url("${url}"); font-display: swap; }`;
         MasterStyle.insert(rule);
-        
+
         STATE.loadedFonts.add(fontId);
         return fontId;
     }
 
     function filter() {
         const q = STATE.search.toLowerCase();
-        STATE.filtered = STATE.fonts.filter(f => 
-            (f.fileName && f.fileName.toLowerCase().includes(q)) || 
+        STATE.filtered = STATE.fonts.filter(f =>
+            (f.fileName && f.fileName.toLowerCase().includes(q)) ||
             (f.userTag && f.userTag.toLowerCase().includes(q))
         );
         render();
@@ -238,7 +236,6 @@ const App = (function() {
 
         const validKeys = new Set(STATE.filtered.map(f => f.fileName));
 
-        // Cleanup DOM
         for (const [fileName, entry] of STATE.renderedMap) {
             if (!validKeys.has(fileName)) {
                 entry.card.remove();
@@ -250,17 +247,17 @@ const App = (function() {
 
         if (STATE.filtered.length === 0) {
             if (!document.getElementById('emptyState')) {
-                const empty = Security.create('div', '', '');
+                const empty = Security.create('div', '');
                 empty.id = 'emptyState';
                 empty.style.cssText = "grid-column:1/-1; text-align:center; padding:4rem; color:var(--text-tertiary);";
-                
+
                 const icon = Security.create('i');
                 icon.setAttribute('data-lucide', 'ghost');
                 icon.setAttribute('width', '32');
                 icon.style.cssText = "opacity:0.5; margin-bottom:1rem;";
-                
+
                 const text = Security.create('p', '', 'لا توجد خطوط');
-                
+
                 empty.appendChild(icon);
                 empty.appendChild(text);
                 DOM.grid.appendChild(empty);
@@ -271,7 +268,6 @@ const App = (function() {
             if (empty) empty.remove();
         }
 
-        // Reset previewNodes
         STATE.previewNodes.length = 0;
 
         STATE.filtered.forEach((font, index) => {
@@ -282,21 +278,21 @@ const App = (function() {
                 if (!fontId) return;
 
                 const card = Security.create('div', 'font-card');
-                
-                // --- Single Delete Button Implementation ---
+                card.setAttribute('role', 'listitem');
+
                 const btnDelete = Security.create('button', 'btn-delete-card');
                 btnDelete.title = "حذف الخط";
+                btnDelete.setAttribute('aria-label', `حذف خط ${font.fileName}`);
                 const iconDel = Security.create('i');
                 iconDel.setAttribute('data-lucide', 'trash-2');
                 iconDel.setAttribute('width', '14');
                 btnDelete.appendChild(iconDel);
-                
+
                 btnDelete.onclick = (e) => {
-                    e.stopPropagation(); // Stop card click
+                    e.stopPropagation();
                     deleteSingleFont(font.fileName);
                 };
                 card.appendChild(btnDelete);
-                // -------------------------------------------
 
                 const preview = Security.create('div', 'card-preview', STATE.previewText);
                 preview.style.fontFamily = `"${fontId}"`;
@@ -310,6 +306,7 @@ const App = (function() {
                 const tagInput = Security.create('input', 'tag-input');
                 tagInput.placeholder = "+وسم";
                 tagInput.value = font.userTag || '';
+                tagInput.setAttribute('aria-label', `وسم لخط ${font.fileName}`);
                 tagInput.onchange = (e) => updateTag(font.fileName, e.target.value);
 
                 meta.appendChild(nameEl);
@@ -318,8 +315,8 @@ const App = (function() {
 
                 entry = { card, preview };
                 STATE.renderedMap.set(font.fileName, entry);
-                
-                iconsDirty = true; 
+
+                iconsDirty = true;
             }
 
             const currentChild = DOM.grid.children[index];
@@ -330,7 +327,7 @@ const App = (function() {
                     DOM.grid.insertBefore(entry.card, currentChild);
                 }
             }
-            
+
             STATE.previewNodes.push(entry.preview);
         });
 
@@ -347,12 +344,10 @@ const App = (function() {
 
         if (!validFiles.length) return toast("صيغة الملف غير مدعومة", "error");
 
-        // --- LIMIT CHECK ---
         if (STATE.fonts.length + validFiles.length > MAX_FONTS) {
             return toast(`الحد الأقصى ${MAX_FONTS} خط. يرجى حذف بعض الخطوط أولاً.`, "error");
         }
 
-        // --- STORAGE OVERFLOW PROTECTION ---
         if (navigator.storage && navigator.storage.estimate) {
             try {
                 const { quota, usage } = await navigator.storage.estimate();
@@ -371,16 +366,14 @@ const App = (function() {
 
         for (let i = 0; i < total; i++) {
             const file = validFiles[i];
-            
-            // 1. Check Size
+
             if (file.size > MAX_FILE_SIZE) {
-                toast(`تجاوز الحجم المسموح (50MB): ${file.name}`, "error");
+                toast(`تجاوز الحجم المسموح (75MB): ${file.name}`, "error");
                 updateProgress(((i + 1) / total) * 100, true);
                 continue;
             }
 
             try {
-                // 2. Check Magic Bytes (Signature)
                 const isValidSignature = await Security.checkSignature(file);
                 if (!isValidSignature) {
                     toast(`ملف غير صالح كخط: ${file.name}`, "error");
@@ -388,23 +381,21 @@ const App = (function() {
                     continue;
                 }
 
-                // 3. Read & Save
                 const exists = STATE.fonts.find(f => f.fileName === file.name);
                 const tag = exists ? exists.userTag : '';
-                const buffer = await readFileBuffer(file); // Wrapped in try/catch
+                const buffer = await readFileBuffer(file);
                 const blob = new Blob([buffer], { type: file.type || 'application/octet-stream' });
-                
+
                 await DB.put({ fileName: file.name, data: blob, userTag: tag });
                 successCount++;
 
-            } catch (e) { 
+            } catch (e) {
                 console.warn(e);
                 toast(`فشل قراءة الملف: ${file.name}`, "error");
             }
 
             updateProgress(((i + 1) / total) * 100, true);
-            
-            // 4. Anti-Freeze
+
             await new Promise(r => requestAnimationFrame(r));
         }
 
@@ -425,29 +416,24 @@ const App = (function() {
         });
     }
 
-    // --- Single Font Deletion ---
     function deleteSingleFont(fileName) {
         if (!confirm(`حذف الخط "${fileName}"؟`)) return;
 
         DB.delete(fileName).then(() => {
-            // Update State
-            STATE.fonts = STATE.fonts.filter(f => f.fileName !== fileName);
+            STATE.fonts    = STATE.fonts.filter(f => f.fileName !== fileName);
             STATE.filtered = STATE.filtered.filter(f => f.fileName !== fileName);
 
-            // Memory Clean
             if (STATE.objectUrls.has(fileName)) {
                 URL.revokeObjectURL(STATE.objectUrls.get(fileName));
                 STATE.objectUrls.delete(fileName);
             }
 
-            // DOM Cleanup (Fast removal)
             const entry = STATE.renderedMap.get(fileName);
             if (entry) {
                 entry.card.remove();
                 STATE.renderedMap.delete(fileName);
             }
 
-            // Re-sync
             filter();
             toast("تم حذف الخط");
 
@@ -457,13 +443,12 @@ const App = (function() {
         });
     }
 
-    // --- Clear All ---
     function clearAll() {
         if (!confirm("حذف المكتبة بالكامل؟")) return;
         if (STATE.isProcessing) return;
 
         STATE.isProcessing = true;
-        
+
         DB.clear()
             .then(() => {
                 STATE.objectUrls.forEach(url => URL.revokeObjectURL(url));
@@ -539,8 +524,12 @@ const App = (function() {
     // --- 7. Utils & Events ---
     function updateProgress(pct, show) {
         DOM.progress.style.width = show ? `${pct}%` : '0';
-        if (show) { DOM.loaderText.textContent = `${Math.floor(pct)}%`; DOM.loaderText.classList.add('active'); }
-        else { setTimeout(() => DOM.loaderText.classList.remove('active'), 300); }
+        if (show) {
+            DOM.loaderText.textContent = `${Math.floor(pct)}%`;
+            DOM.loaderText.classList.add('active');
+        } else {
+            setTimeout(() => DOM.loaderText.classList.remove('active'), 300);
+        }
     }
 
     function toast(msg, type = 'success') {
@@ -551,12 +540,12 @@ const App = (function() {
         setTimeout(() => t.classList.remove('active'), 3000);
     }
 
-    function copyText(text) { 
+    function copyText(text) {
         navigator.clipboard.writeText(text)
             .then(() => toast("تم نسخ الاسم"))
-            .catch(e => console.warn("Clipboard failed", e)); 
+            .catch(e => console.warn("Clipboard failed", e));
     }
-    
+
     function setTheme(t) {
         document.body.setAttribute('data-theme', t);
         localStorage.setItem('theme', t);
@@ -573,7 +562,7 @@ const App = (function() {
                 filter();
             }, 100);
         });
-        
+
         let previewTimeout;
         DOM.preview.addEventListener('input', e => {
             clearTimeout(previewTimeout);
@@ -586,26 +575,29 @@ const App = (function() {
         });
 
         DOM.fileInput.onchange = e => handleUpload(e.target.files);
-        DOM.dropZone.ondragover = e => { e.preventDefault(); DOM.dropZone.classList.add('active'); };
+        DOM.dropZone.ondragover  = e => { e.preventDefault(); DOM.dropZone.classList.add('active'); };
         DOM.dropZone.ondragleave = e => { e.preventDefault(); DOM.dropZone.classList.remove('active'); };
-        DOM.dropZone.ondrop = e => { e.preventDefault(); DOM.dropZone.classList.remove('active'); handleUpload(e.dataTransfer.files); };
+        DOM.dropZone.ondrop      = e => { e.preventDefault(); DOM.dropZone.classList.remove('active'); handleUpload(e.dataTransfer.files); };
     }
 
     return {
         init, exportPDF, clearAll,
         toggleTheme: () => setTheme(localStorage.getItem('theme') === 'dark' ? 'light' : 'dark'),
-        toggleSidebar: () => { DOM.sidebar.classList.toggle('active'); DOM.overlay.classList.toggle('active'); }
+        toggleSidebar: () => {
+            DOM.sidebar.classList.toggle('active');
+            DOM.overlay.classList.toggle('active');
+        }
     };
 })();
 
-// Initialize App
+// Initialize
 window.addEventListener('DOMContentLoaded', App.init);
 
-// Register Service Worker
+// Service Worker
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')
-            .then(reg => console.log('SW Registered'))
+            .then(() => console.log('SW Registered'))
             .catch(err => console.warn('SW Fail', err));
     });
 }
