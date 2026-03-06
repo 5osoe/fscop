@@ -2,249 +2,196 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>فونت سكوب — معاينة الخطوط الاحترافية | 750 خط مجاناً</title>
-<meta name="description" content="فونت سكوب: أداة مجانية لإدارة ومعاينة 750 خطاً داخل المتصفح. TTF وOTF وWOFF، معاينة فورية، تحكم بالحجم واللون، تصدير PDF. خصوصية تامة.">
-<meta name="keywords" content="مدير خطوط,Font Manager,Font Scope,فونت سكوب,خطوط عربية,معاينة خطوط,TTF,OTF,WOFF">
-<meta name="robots" content="index,follow,max-snippet:-1,max-image-preview:large">
-<meta name="theme-color" content="#FF3626">
-<link rel="canonical" href="https://fscop.vercel.app/">
-<meta property="og:type" content="website">
-<meta property="og:title" content="فونت سكوب — مدير الخطوط الاحترافي">
-<meta property="og:description" content="معاينة وتنظيم 750 خطاً داخل المتصفح. مجاني، سريع، آمن.">
-<meta property="og:url" content="https://fscop.vercel.app/">
-<meta property="og:image" content="https://fscop.vercel.app/og-image.png">
-<meta name="twitter:card" content="summary_large_image">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"فونت سكوب","url":"https://fscop.vercel.app/","description":"أداة مجانية لإدارة الخطوط في المتصفح","applicationCategory":"DesignApplication","operatingSystem":"Web Browser","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
-<link rel="icon" href="favicon.ico">
-<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
-<link rel="manifest" href="manifest.json">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="فونت سكوب">
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-X0B0V3X07Z"></script>
-<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-X0B0V3X07Z')</script>
-<script src="https://unpkg.com/lucide@latest" defer></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Font Scope | OS</title>
+<meta name="theme-color" content="#000000">
+<meta name="description" content="A minimal, grid-based font manager inspired by Nothing OS.">
+<!-- Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<!-- Icons -->
+<script src="https://unpkg.com/lucide@latest" defer></script>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body data-theme="dark">
 
-<!-- Progress bar -->
-<div class="loader-bar-wrap">
-  <div class="loader-bar" id="progressBar"></div>
-</div>
-<div class="loader-label" id="loaderLabel">0%</div>
-
-<!-- ══ TOP NAV ══ -->
-<header class="top-nav">
-
-  <!-- Mobile menu toggle -->
-  <button class="btn-icon btn-menu" id="btnMenu" title="القائمة" aria-label="فتح القائمة">
-    <i data-lucide="menu" width="16" height="16"></i>
-  </button>
-
-  <!-- Brand -->
-  <a href="/" class="brand" aria-label="فونت سكوب">
-    <div class="brand-mark" aria-hidden="true">
-      <i data-lucide="zap" width="14" height="14"></i>
-    </div>
-    <span class="brand-name">FontScope</span>
-    <span class="brand-badge">PRO</span>
-  </a>
-
-  <div class="nav-divider"></div>
-
-  <!-- Preview text input -->
-  <div class="preview-input-wrap">
-    <input
-      type="text"
-      id="previewInput"
-      class="preview-input"
-      placeholder="نص المعاينة..."
-      value="سبحان الله وبحمده"
-      autocomplete="off"
-      spellcheck="false"
-      dir="auto"
-      aria-label="نص المعاينة"
-    >
-  </div>
-
-  <!-- Font size control -->
-  <div class="size-ctrl" title="حجم الخط" role="group" aria-label="حجم المعاينة">
-    <button class="size-btn" id="btnSizeDown" aria-label="تصغير">−</button>
-    <span class="size-val" id="sizeVal">32</span>
-    <button class="size-btn" id="btnSizeUp" aria-label="تكبير">+</button>
-  </div>
-
-  <!-- Color picker -->
-  <div class="color-wrap" title="لون النص" aria-label="لون النص">
-    <div class="color-dot" id="colorDot" style="background:#F0F0F2"></div>
-    <input type="color" id="colorInput" value="#F0F0F2" aria-label="اختيار لون النص">
-  </div>
-
-  <div class="nav-divider"></div>
-
-  <!-- Actions -->
-  <div class="nav-actions">
-
-    <!-- Search -->
-    <div class="search-wrap">
-      <i data-lucide="search" width="14" height="14"></i>
-      <input
-        type="search"
-        id="searchInput"
-        class="search-input"
-        placeholder="بحث عن خط..."
-        autocomplete="off"
-        aria-label="بحث في الخطوط"
-      >
+<!-- App Layout -->
+<div class="app-layout">
+  
+  <!-- 1. Sidebar Controls (Left on LTR, Right on RTL) -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-logo">
+        <span class="dot-matrix">N</span>
+      </div>
+      <div class="brand-text">
+        <span class="font-title">FONT SCOPE</span>
+        <span class="font-ver">V5.0</span>
+      </div>
     </div>
 
-    <!-- Upload -->
-    <label class="btn-upload btn-upload-nav" title="رفع خطوط" aria-label="رفع خطوط">
-      <i data-lucide="upload" width="14" height="14"></i>
-      <span>رفع خطوط</span>
-      <input type="file" id="fileInput" multiple accept=".ttf,.otf,.woff2,.woff" aria-label="اختيار ملفات الخطوط">
-    </label>
+    <div class="sidebar-scroll">
+      <!-- Upload Section -->
+      <div class="control-group">
+        <label class="btn-pill btn-accent">
+          <i data-lucide="plus"></i>
+          <span>رفع خطوط</span>
+          <input type="file" id="fileInput" multiple accept=".ttf,.otf,.woff2,.woff" hidden>
+        </label>
+      </div>
 
-    <!-- Export PDF -->
-    <button class="btn-primary" id="btnExport" title="تصدير PDF" aria-label="تصدير PDF">
-      <i data-lucide="printer" width="14" height="14"></i>
-      <span>Export</span>
-    </button>
-
-    <!-- Theme toggle -->
-    <button class="btn-icon" id="btnTheme" title="تبديل المظهر" aria-label="تبديل المظهر">
-      <i data-lucide="sun" width="16" height="16" id="themeIcon"></i>
-    </button>
-
-  </div>
-</header>
-
-<!-- ══ TOOLBAR ══ -->
-<div class="toolbar">
-  <span class="toolbar-label">المكتبة</span>
-  <span class="font-count">
-    <span id="totalFonts">0</span> خط
-  </span>
-  <div class="toolbar-sep"></div>
-  <div class="cap-bar" title="سعة المكتبة" aria-label="سعة المكتبة">
-    <div class="cap-track">
-      <div class="cap-fill" id="capFill"></div>
-    </div>
-    <span style="font-size:10px;color:var(--text-3);white-space:nowrap" id="capLabel">0 / 750</span>
-  </div>
-  <button class="btn-clear" id="btnClear" aria-label="حذف الكل">
-    <i data-lucide="trash-2" width="12" height="12"></i>
-    حذف الكل
-  </button>
-</div>
-
-<!-- ══ MAIN CONTENT ══ -->
-<div class="main-scroll" id="mainScroll">
-  <div id="fontGrid" class="font-grid" role="list" aria-label="مكتبة الخطوط"></div>
-</div>
-
-<!-- ══ DRAG DROP OVERLAY ══ -->
-<div class="drop-overlay" id="dropOverlay" role="dialog" aria-label="منطقة الإفلات">
-  <div class="drop-overlay-icon"><i data-lucide="upload-cloud" width="48" height="48"></i></div>
-  <p>أفلت الخطوط هنا</p>
-  <small>TTF · OTF · WOFF · WOFF2 · الحد الأقصى 75MB للملف</small>
-</div>
-
-<!-- ══ MOBILE PANEL (no overlay — slide only) ══ -->
-<aside class="mobile-panel" id="mobilePanel" aria-label="القائمة الجانبية">
-  <div class="panel-header">
-    <span class="panel-title">FontScope</span>
-    <button class="panel-close" id="btnPanelClose" aria-label="إغلاق القائمة">
-      <i data-lucide="x" width="14" height="14"></i>
-    </button>
-  </div>
-  <div class="panel-body">
-
-    <!-- Upload -->
-    <div>
-      <div class="panel-section-title">رفع الخطوط</div>
-      <label class="panel-upload-zone" id="dropZoneMobile">
-        <i data-lucide="upload-cloud" width="28" height="28" style="color:var(--accent)"></i>
-        <p>اضغط أو اسحب الملفات</p>
-        <small>TTF · OTF · WOFF · WOFF2 · حتى 75MB</small>
-        <input type="file" id="fileInputMobile" multiple accept=".ttf,.otf,.woff2,.woff" aria-label="رفع خطوط">
-      </label>
-    </div>
-
-    <!-- Preview controls -->
-    <div>
-      <div class="panel-section-title">المعاينة</div>
-      <input type="text" id="previewInputMobile" class="preview-input" style="width:100%;margin-bottom:10px"
-        placeholder="نص المعاينة..." value="سبحان الله وبحمده" autocomplete="off" dir="auto">
-
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-        <div class="size-ctrl" style="flex:1">
-          <button class="size-btn" id="btnSizeDownM">−</button>
-          <span class="size-val" id="sizeValM">32</span>
-          <button class="size-btn" id="btnSizeUpM">+</button>
+      <!-- Stats -->
+      <div class="stat-card">
+        <span class="stat-label">المكتبة</span>
+        <div class="stat-value">
+          <span id="totalFonts">0</span>
+          <span class="stat-max">/ 750</span>
         </div>
-        <div class="color-wrap" style="flex-shrink:0">
-          <div class="color-dot" id="colorDotM" style="background:#F0F0F2"></div>
-          <input type="color" id="colorInputM" value="#F0F0F2">
+        <div class="progress-track">
+          <div class="progress-fill" id="capFill"></div>
         </div>
       </div>
 
-      <input type="search" id="searchInputMobile" class="search-input" style="width:100%"
-        placeholder="بحث عن خط..." autocomplete="off">
+      <div class="divider-dotted"></div>
+
+      <!-- Filters & Actions -->
+      <nav class="nav-menu">
+        <button class="nav-item" id="btnTheme">
+          <i data-lucide="sun"></i>
+          <span>المظهر</span>
+        </button>
+        <button class="nav-item" id="btnExport">
+          <i data-lucide="file-down"></i>
+          <span>تقرير PDF</span>
+        </button>
+        <button class="nav-item danger" id="btnClear">
+          <i data-lucide="trash"></i>
+          <span>حذف الكل</span>
+        </button>
+      </nav>
     </div>
 
-    <!-- Stats -->
-    <div>
-      <div class="panel-section-title">الإحصائيات</div>
-      <div class="panel-stat">
-        <span class="panel-stat-label">إجمالي الخطوط</span>
-        <span class="panel-stat-val" id="totalFontsM">0</span>
-      </div>
-      <div class="panel-cap-bar" style="margin-top:10px">
-        <div class="panel-cap-fill" id="capFillM"></div>
-      </div>
+    <div class="sidebar-footer">
+      <span class="sys-status">SYSTEM OK</span>
     </div>
+  </aside>
 
-    <!-- Actions -->
-    <div style="display:flex;flex-direction:column;gap:10px">
-      <button class="panel-clear-btn" id="btnClearM">
-        <i data-lucide="trash-2" width="14" height="14"></i>
-        حذف المكتبة كاملة
-      </button>
-      <div id="pwaSectionM" style="display:none">
-        <button class="pwa-btn" id="pwaInstallBtnM">
-          <i data-lucide="download" width="14" height="14"></i>
-          تثبيت التطبيق
+  <!-- 2. Main Content Area -->
+  <main class="main-content">
+    
+    <!-- Sticky Header / Toolbar -->
+    <header class="top-bar">
+      <!-- Search -->
+      <div class="search-box">
+        <i data-lucide="search" class="search-icon"></i>
+        <input type="text" id="searchInput" placeholder="بحث باسم الخط..." autocomplete="off">
+      </div>
+
+      <!-- Global Preview Input -->
+      <div class="preview-bar">
+        <input type="text" id="previewInput" value="Simplicity is the ultimate sophistication" placeholder="نص المعاينة...">
+      </div>
+
+      <!-- Size & Color -->
+      <div class="display-controls">
+        <div class="size-stepper">
+          <button id="btnSizeDown"><i data-lucide="minus"></i></button>
+          <span id="sizeVal">32</span>
+          <button id="btnSizeUp"><i data-lucide="plus"></i></button>
+        </div>
+        <div class="color-picker-wrap">
+          <input type="color" id="colorInput" value="#FFFFFF">
+          <div class="color-indicator" id="colorDot"></div>
+        </div>
+        <!-- Mobile Menu Toggle -->
+        <button class="icon-btn mobile-only" id="btnMenu">
+          <i data-lucide="menu"></i>
         </button>
       </div>
-    </div>
+    </header>
 
-    <div style="font-size:10px;color:var(--text-3);text-align:center;margin-top:auto;padding-top:10px">
-      V4.0 · 750 Fonts · 75MB Max
+    <!-- Grid Area -->
+    <div class="content-scroll" id="mainScroll">
+      <div id="fontGrid" class="grid-layout">
+        <!-- Cards will be injected here via JS -->
+      </div>
+      
+      <!-- Empty State -->
+      <div id="emptyState" class="empty-state" style="display:none;">
+        <div class="empty-graphic">
+          <span class="dot-matrix-lg">NULL</span>
+        </div>
+        <p>لا توجد بيانات. قم برفع ملفات الخطوط.</p>
+        <span class="tech-tag">TTF · OTF · WOFF</span>
+      </div>
+    </div>
+  </main>
+
+  <!-- Drop Overlay -->
+  <div id="dropOverlay" class="drop-overlay">
+    <div class="drop-content">
+      <i data-lucide="arrow-down-circle" width="64" height="64"></i>
+      <h2>DROP FILES</h2>
     </div>
   </div>
-</aside>
 
-<!-- ══ TOAST ══ -->
-<div id="toast" class="toast" role="alert" aria-live="polite">
-  <span class="toast-icon" id="toastIcon"></span>
-  <span id="toastMsg">تمت العملية</span>
+  <!-- Mobile Drawer (Matches Nothing OS style) -->
+  <div class="mobile-drawer-overlay" id="mobileOverlay"></div>
+  <div class="mobile-drawer" id="mobileDrawer">
+    <div class="drawer-header">
+      <span>القائمة</span>
+      <button class="icon-btn" id="btnCloseDrawer"><i data-lucide="x"></i></button>
+    </div>
+    <div class="drawer-body">
+      <!-- Upload Mobile -->
+      <label class="btn-pill btn-accent full-width">
+        <i data-lucide="upload-cloud"></i>
+        <span>رفع ملفات</span>
+        <input type="file" id="fileInputM" multiple accept=".ttf,.otf,.woff2,.woff" hidden>
+      </label>
+      
+      <div class="divider-dotted"></div>
+      
+      <!-- Export Mobile -->
+      <button class="nav-item" id="btnExportM">
+        <i data-lucide="file-text"></i>
+        <span>تصدير PDF</span>
+      </button>
+      
+      <button class="nav-item danger" id="btnClearM">
+        <i data-lucide="trash-2"></i>
+        <span>حذف المكتبة</span>
+      </button>
+
+      <div class="stat-card mobile-stat">
+        <span class="stat-label">المساحة المستخدمة</span>
+        <div class="progress-track"><div class="progress-fill" id="capFillM"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast">
+    <span class="toast-dot"></span>
+    <span id="toastMsg">Notification</span>
+  </div>
+
 </div>
 
-<!-- ══ PRINT CONTAINER ══ -->
-<div id="printContainer">
-  <table id="printTable">
-    <thead><tr>
-      <th style="width:50%">المعاينة</th>
-      <th style="width:30%">اسم الخط</th>
-      <th style="width:20%">الوسم</th>
-    </tr></thead>
-    <tbody id="printBody"></tbody>
+<!-- Hidden Print Area (Strict Table Layout) -->
+<div id="printArea" class="print-container">
+  <table class="print-table">
+    <thead>
+      <tr>
+        <th class="col-name">Font Name</th>
+        <th class="col-preview">Preview</th>
+        <th class="col-tag">Tag</th>
+      </tr>
+    </thead>
+    <tbody id="printBody">
+      <!-- Rows generated by JS -->
+    </tbody>
   </table>
 </div>
 
